@@ -40,23 +40,23 @@ Un PDF no funciona internamente como Word. El texto puede estar fragmentado, con
 
 Este build **no incluye OCR**. Si un PDF es un escaneo/foto y no contiene capa de texto, no habrá texto original seleccionable. Cubrir en negro tampoco elimina el contenido subyacente y no debe usarse como redacción segura de información sensible.
 
-## v1.3.0 — 2026-09-13
+## v1.4.0 — 2026-09-13
 
-- Corregido un fallo real en la capa de texto: después de extraer el texto, una condición descartaba el modo **Seleccionar** y solo permitía **Editar texto**.
-- Añadido fallback por proximidad: si el área táctil del texto queda ligeramente desalineada, el editor busca el bloque de texto más cercano al toque.
-- **Seleccionar** y **Editar texto** usan la misma capa de texto original y ambos pueden abrir el editor.
-- Diseño de iPhone rehecho: encabezado en dos filas y respetando `safe-area-inset-top`.
-- Cambiado el modo de barra de estado de iOS para evitar que hora/señal/batería se monten sobre el encabezado.
-- Herramientas móviles en cuadrícula de 4 columnas, sin barra horizontal recortada.
-- Pantalla inicial más compacta en móvil.
-- **↩ Deshacer** permanece visible.
-- Preparado para distribución con una sola carpeta principal y sin subcarpetas.
+- Rehecha la edición de texto existente sobre la **TextLayer oficial de PDF.js** en vez de reconstruir manualmente las coordenadas de cada texto.
+- Los cuadros de **Editar texto** se calculan a partir de las posiciones reales de los spans que renderiza el navegador, lo que mejora especialmente Safari/iPhone.
+- Se desactiva el autoajuste de tamaño de texto de iOS dentro de la capa de medición para evitar desplazamientos.
+- Los fragmentos siguen agrupándose en **líneas/bloques** y columnas lejanas permanecen separadas.
+- Cambiar de herramienta ya no vuelve a renderizar todo el canvas PDF; solo reconstruye la capa interactiva, evitando carreras de render en móvil.
+- Si PDF.js encuentra texto pero la medición DOM falla, queda un fallback de geometría en vez de mostrar silenciosamente cero cuadros.
+- **↩ Deshacer** permanece visible y no se añadió OCR.
+- Distribución: una sola carpeta principal y sin subcarpetas.
 
+## Edición de texto v1.4.0
 
-## Edición de texto v1.3.0
+1. Abre un PDF que contenga texto real.
+2. Pulsa **Editar texto**.
+3. Deben aparecer cuadros azules alrededor de las líneas/bloques detectados.
+4. Toca un cuadro para editar ese bloque.
+5. Después de aplicar el cambio, **Editar texto permanece activo** para seguir con otro bloque.
 
-- Al activar **Editar texto**, todos los textos detectados de la página aparecen rodeados por cuadros azules visibles.
-- Los fragmentos internos de PDF.js se agrupan en **líneas/bloques** para que sean fáciles de tocar en iPhone.
-- Campos o columnas separados por una distancia grande permanecen como bloques distintos.
-- Toca un cuadro para abrir el editor del bloque. Después de aplicar el cambio, **Editar texto permanece activo** para seguir con otro bloque.
-- No incluye OCR. Los PDFs que sean solo una imagen/escaneo no producirán cuadros de texto.
+Este build no incluye OCR.

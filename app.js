@@ -1,4 +1,4 @@
-import { groupTextMetasIntoBlocks } from './text-blocks.js';
+import { groupTextMetasIntoBlocks, groupTextLayerEntriesIntoBlocks } from './text-blocks.js';
 
 let pdfjsLib;
 let pdfJsBase = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.3.289';
@@ -40,7 +40,7 @@ const els = {
   pageInput: $('pageInput'), pageTotal: $('pageTotal'), prevPageBtn: $('prevPageBtn'), nextPageBtn: $('nextPageBtn'),
   zoomOutBtn: $('zoomOutBtn'), zoomInBtn: $('zoomInBtn'), zoomLabel: $('zoomLabel'), fitBtn: $('fitBtn'),
   canvasScroller: $('canvasScroller'), stage: $('pageStage'), canvas: $('pdfCanvas'), overlay: $('overlaySvg'),
-  textHitLayer: $('textHitLayer'), selectionLayer: $('selectionLayer'), toolbar: $('toolbar'),
+  textMeasureLayer: $('pdfTextMeasureLayer'), textHitLayer: $('textHitLayer'), selectionLayer: $('selectionLayer'), toolbar: $('toolbar'),
   properties: $('properties'), propertiesBody: $('propertiesBody'), closePropertiesBtn: $('closePropertiesBtn'), pageToolsBtn: $('pageToolsBtn'), undoBtn: $('undoBtn'), redoBtn: $('redoBtn'), imageBtn: $('imageBtn'),
   signatureBtn: $('signatureBtn'), rotateLeftBtn: $('rotateLeftBtn'), rotateRightBtn: $('rotateRightBtn'),
   duplicatePageBtn: $('duplicatePageBtn'), deletePageBtn: $('deletePageBtn'), moveUpBtn: $('moveUpBtn'), moveDownBtn: $('moveDownBtn'),
@@ -70,7 +70,8 @@ const state = {
   loadingTask: null,
   thumbObserver: null,
   modalResolver: null,
-  textItems: []
+  textItems: [],
+  activeTextLayer: null
 };
 
 function uid(prefix = 'a') {
@@ -279,41 +280,105 @@ async function renderCurrentPage({keepScroll = false} = {}) {
 
 async function renderTextHitLayer(sourcePage, seq) {
   els.textHitLayer.innerHTML = '';
+  els.textMeasureLayer.innerHTML = '';
   state.textItems = [];
+  try { state.activeTextLayer?.cancel?.(); } catch {}
+  state.activeTextLayer = null;
+
   const textSelectable = ['select','editText'].includes(state.tool);
   els.stage.classList.toggle('tool-editText', state.tool === 'editText');
   els.stage.classList.toggle('tool-selectText', state.tool === 'select');
   if (!textSelectable) return;
+
   try {
-    const content = await sourcePage.getTextContent();
+    const content = await sourcePage.getTextContent({includeMarkedContent:true});
     if (seq !== state.renderSeq || !['select','editText'].includes(state.tool)) return;
 
+    const textItems = content.items.filter(item => typeof item?.str === 'string');
+    const layerHost = els.textMeasureLayer;
+    layerHost.innerHTML = '';
+    layerHost.style.setProperty('--total-scale-factor', String(state.viewport.scale));
+    layerHost.style.setProperty('--scale-factor', String(state.viewport.scale));
+
+    const textLayer = new pdfjsLib.TextLayer({
+      textContentSource: content,
+      container: layerHost,
+      viewport: state.viewport
+    });
+    state.activeTextLayer = textLayer;
+    await textLayer.render();
+    if (seq !== state.renderSeq || state.activeTextLayer !== textLayer || !['select','editText'].includes(state.tool)) return;
+
+    // PDF.js intentionally relies on viewer CSS for TextLayer font sizing.
+    // This PWA does not load the full viewer stylesheet because it conflicts
+    // with our toolbar styles, so materialize the few span styles we need.
+    for (const div of textLayer.textDivs) {
+      const fontHeight = parseFloat(div.style.getPropertyValue('--font-height')) || 0;
+      const scaleX = div.style.getPropertyValue('--scale-x').trim() || '1';
+      const rotate = div.style.getPropertyValue('--rotate').trim() || '0deg';
+      div.style.position = 'absolute';
+      div.style.whiteSpace = 'pre';
+      div.style.lineHeight = '1';
+      div.style.transformOrigin = '0 0';
+      div.style.fontSize = `${Math.max(1, fontHeight * state.viewport.scale)}px`;
+      div.style.transform = `rotate(${rotate}) scaleX(${scaleX})`;
+      div.style.webkitTextSizeAdjust = 'none';
+      div.style.textSizeAdjust = 'none';
+    }
+
+    // Give Safari one layout turn so getBoundingClientRect reflects PDF.js's
+    // span geometry before we build the touch targets.
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    if (seq !== state.renderSeq || state.activeTextLayer !== textLayer || !['select','editText'].includes(state.tool)) return;
+
+    const stageRect = els.stage.getBoundingClientRect();
     const rawMetas = [];
-    content.items.forEach((item, idx) => {
-      if (!item.str?.trim()) return;
-      const tx = pdfjsLib.Util.transform(state.viewport.transform, item.transform);
-      const fontHeight = Math.max(6, Math.hypot(tx[2], tx[3]));
-      const width = Math.max(4, Math.abs(item.width * state.viewport.scale));
-      const angle = Math.atan2(tx[1], tx[0]);
-      const exactTop = tx[5] - fontHeight;
-      const exactHeight = fontHeight * 1.1;
-      rawMetas.push({item, idx, x:tx[4], y:exactTop, width, height:exactHeight, fontHeight, angle});
+    textLayer.textDivs.forEach((div, idx) => {
+      const item = textItems[idx];
+      const text = item?.str ?? div.textContent ?? '';
+      if (!text.trim()) return;
+      const rect = div.getBoundingClientRect();
+      if (!(rect.width > 0) || !(rect.height > 0)) return;
+      rawMetas.push({
+        item,
+        text,
+        idx,
+        sourceIndex: idx,
+        x: rect.left - stageRect.left,
+        y: rect.top - stageRect.top,
+        width: rect.width,
+        height: rect.height,
+        fontHeight: rect.height,
+        angle: 0,
+        hasEOL: !!item?.hasEOL
+      });
     });
 
-    const targets = state.tool === 'editText' ? groupTextMetasIntoBlocks(rawMetas) : rawMetas;
-    state.textItems = targets;
+    let targets = state.tool === 'editText' ? groupTextLayerEntriesIntoBlocks(rawMetas) : rawMetas;
 
+    // Safety fallback: if PDF.js reports text but browser geometry could not be
+    // measured, fall back to matrix geometry rather than silently showing no boxes.
+    if (!targets.length && textItems.some(item => item.str?.trim())) {
+      const fallback = [];
+      textItems.forEach((item, idx) => {
+        if (!item.str?.trim()) return;
+        const tx = pdfjsLib.Util.transform(state.viewport.transform, item.transform);
+        const fontHeight = Math.max(6, Math.hypot(tx[2], tx[3]));
+        fallback.push({item, text:item.str, idx, x:tx[4], y:tx[5]-fontHeight, width:Math.max(4,Math.abs(item.width*state.viewport.scale)), height:fontHeight*1.1, fontHeight, angle:Math.atan2(tx[1],tx[0]), hasEOL:!!item.hasEOL});
+      });
+      targets = state.tool === 'editText' ? groupTextMetasIntoBlocks(fallback) : fallback;
+    }
+
+    state.textItems = targets;
     targets.forEach((meta, idx) => {
       const box = document.createElement('div');
       box.className = meta.isTextBlock ? 'text-hit text-block-hit' : 'text-hit';
-      const hitPadX = meta.isTextBlock ? 3 : 4;
+      const hitPadX = meta.isTextBlock ? 4 : 4;
       const hitPadY = meta.isTextBlock ? 3 : Math.max(0, (Math.max(24, meta.height + 8) - meta.height) / 2);
       box.style.left = `${meta.x - hitPadX}px`;
       box.style.top = `${meta.y - hitPadY}px`;
       box.style.width = `${Math.max(14, meta.width + hitPadX * 2)}px`;
       box.style.height = `${Math.max(meta.isTextBlock ? 18 : 24, meta.height + hitPadY * 2)}px`;
-      box.style.transformOrigin = '0 100%';
-      if (Math.abs(meta.angle || 0) > .01) box.style.transform = `rotate(${meta.angle}rad)`;
       box.title = meta.text || meta.item?.str || '';
       box.dataset.textBlock = String(idx);
       meta.box = box;
@@ -326,10 +391,12 @@ async function renderTextHitLayer(sourcePage, seq) {
     });
 
     if (state.tool === 'editText' && targets.length === 0) {
-      toast('Esta página no contiene texto editable. Puede ser un escaneo o texto convertido a dibujo.');
+      toast('No encontré bloques de texto editables en esta página.');
     }
   } catch (err) {
-    console.warn('Text extraction failed', err);
+    if (err?.name === 'AbortException') return;
+    console.warn('Text extraction / TextLayer failed', err);
+    if (state.tool === 'editText') toast('No pude crear los cuadros de texto de esta página.', 4200);
   }
 }
 
@@ -476,7 +543,24 @@ function setTool(tool) {
   els.stage.classList.toggle('tool-editText', tool === 'editText');
   els.stage.classList.toggle('tool-selectText', tool === 'select');
   els.textHitLayer.style.pointerEvents = ['select','editText'].includes(tool) ? 'auto' : 'none';
-  renderCurrentPage({keepScroll:true});
+
+  // Tool changes should not repaint the PDF canvas. Rebuilding only the text
+  // interaction layer avoids overlapping render tasks on iPhone Safari.
+  if (!state.pdfJsDoc) return;
+  if (['select','editText'].includes(tool)) {
+    const seq = state.renderSeq;
+    const pageInfo = currentPageInfo();
+    state.pdfJsDoc.getPage(pageInfo.sourceIndex + 1)
+      .then(page => renderTextHitLayer(page, seq))
+      .catch(err => console.warn('Text layer refresh failed', err));
+  } else {
+    try { state.activeTextLayer?.cancel?.(); } catch {}
+    state.activeTextLayer = null;
+    els.textMeasureLayer.innerHTML = '';
+    els.textHitLayer.innerHTML = '';
+    state.textItems = [];
+  }
+  renderOverlay();
 }
 
 function stagePointFromEvent(e) {

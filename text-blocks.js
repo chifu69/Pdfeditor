@@ -91,3 +91,63 @@ export function groupTextMetasIntoBlocks(metas, options = {}) {
   flush();
   return blocks;
 }
+
+/**
+ * Normalize the browser geometry produced by PDF.js TextLayer into visual
+ * line/block targets. TextLayer gives us the same span positions that the
+ * browser uses, which is substantially more reliable on Safari/iPhone than
+ * rebuilding the text matrix ourselves.
+ */
+export function groupTextLayerEntriesIntoBlocks(entries, options = {}) {
+  const clean = (entries || [])
+    .filter(entry => entry && String(entry.text ?? entry.item?.str ?? '').trim() && Number.isFinite(entry.x) && Number.isFinite(entry.y))
+    .map(entry => ({
+      ...entry,
+      item: entry.item || { str: entry.text || '', hasEOL: !!entry.hasEOL },
+      text: entry.text ?? entry.item?.str ?? '',
+      width: Math.max(1, Number(entry.width) || 1),
+      height: Math.max(1, Number(entry.height) || 1),
+      fontHeight: Math.max(1, Number(entry.fontHeight) || Number(entry.height) || 1),
+      angle: Number(entry.angle) || 0
+    }))
+    .sort((a, b) => centerY(a) - centerY(b) || a.x - b.x);
+
+  if (!clean.length) return [];
+
+  const lineFactor = options.lineFactor ?? 0.62;
+  const lines = [];
+  for (const entry of clean) {
+    const cy = centerY(entry);
+    let best = null;
+    let bestDelta = Infinity;
+    for (let i = Math.max(0, lines.length - 3); i < lines.length; i++) {
+      const line = lines[i];
+      const base = Math.max(4, Math.min(line.height, entry.height));
+      const delta = Math.abs(line.centerY - cy);
+      if (delta <= Math.max(2.5, base * lineFactor) && angleDistance(line.angle, entry.angle) <= (options.angleTolerance ?? 0.08) && delta < bestDelta) {
+        best = line;
+        bestDelta = delta;
+      }
+    }
+    if (!best) {
+      best = { items: [], centerY: cy, height: entry.height, angle: entry.angle };
+      lines.push(best);
+    }
+    best.items.push(entry);
+    const n = best.items.length;
+    best.centerY = ((best.centerY * (n - 1)) + cy) / n;
+    best.height = Math.max(best.height, entry.height);
+  }
+
+  const blocks = [];
+  for (const line of lines.sort((a, b) => a.centerY - b.centerY)) {
+    const lineItems = line.items.sort((a, b) => a.x - b.x);
+    const lineBlocks = groupTextMetasIntoBlocks(lineItems, options);
+    for (const block of lineBlocks) {
+      block.idx = blocks.length;
+      block.fromTextLayer = true;
+      blocks.push(block);
+    }
+  }
+  return blocks;
+}
