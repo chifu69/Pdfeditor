@@ -1,14 +1,12 @@
 # PDF Editor PWA
 
-Editor de PDF que funciona en el navegador y procesa los archivos localmente.
+Editor de PDF para navegador. Los archivos se procesan localmente en el dispositivo.
 
-## Ejecutar
+## Ejecutar / publicar
 
-Los Service Workers y módulos ES requieren HTTP/HTTPS. No abras `index.html` directamente con `file://`.
+Los módulos ES y el Service Worker requieren HTTP/HTTPS. No abras `index.html` directamente con `file://`.
 
-### Windows / macOS / Linux
-
-Con Python instalado:
+Para una prueba local con Python:
 
 ```bash
 python -m http.server 8080
@@ -16,35 +14,40 @@ python -m http.server 8080
 
 Luego abre `http://localhost:8080`.
 
-También se puede publicar la carpeta completa en GitHub Pages, Cloudflare Pages, Netlify o Vercel.
+La carpeta también se puede publicar directamente en GitHub Pages.
 
 ## Funciones
 
 - Abrir PDFs locales sin subirlos a un servidor.
 - Renderizado con PDF.js.
-- Seleccionar texto original del PDF directamente con **Seleccionar** o **Editar texto** y reemplazarlo visualmente.
-- Blancos táctiles ampliados para seleccionar texto con más facilidad en iPhone/iPad.
+- **Seleccionar** texto original del PDF y abrirlo para reemplazo visual.
+- **Editar texto** muestra zonas táctiles sobre el texto original.
+- Búsqueda del bloque de texto más cercano cuando el toque queda unos píxeles fuera, pensada para iPhone/iPad.
 - Agregar texto.
-- Whiteout / borrado visual.
-- Cubrir contenido en negro (ocultación visual; no es redacción segura).
-- Resaltado.
-- Dibujo libre.
+- Borrado visual / whiteout.
+- Cubrir en negro (ocultación visual; no es redacción segura).
+- Resaltado y dibujo libre.
 - Insertar PNG/JPEG.
 - Crear y colocar firma manuscrita.
 - Rotar, duplicar, eliminar y reordenar páginas.
-- Undo/redo. En móvil, **↩ Deshacer** permanece visible en la barra superior.
+- Undo/redo; **↩ Deshacer** queda visible en móvil.
 - Exportar un PDF nuevo.
-- PWA instalable y caché offline después de la primera carga de las librerías.
+- PWA instalable.
 
 ## Límites importantes
 
-Un PDF no es un documento de Word: el texto puede estar fragmentado, convertido a curvas, embebido con fuentes especiales o ser solo una imagen escaneada. Por eso la edición de texto existente se implementa como reemplazo visual. En PDFs escaneados puedes cubrir contenido y agregar texto, pero este build no incluye OCR. Los PDFs cifrados/protegidos pueden requerir desbloqueo previo. Cubrir en negro no elimina el texto subyacente del PDF, así que no debe usarse como redacción segura para información sensible. Los cambios estructurales de páginas pueden no preservar todos los elementos interactivos avanzados del PDF (formularios dinámicos, firmas digitales, adjuntos, JavaScript, etc.).
+Un PDF no funciona internamente como Word. El texto puede estar fragmentado, convertido a curvas, usar fuentes especiales o ser una imagen escaneada. La edición de texto existente de este build se hace cubriendo visualmente el texto original y escribiendo el nuevo encima.
 
+Este build **no incluye OCR**. Si un PDF es un escaneo/foto y no contiene capa de texto, no habrá texto original seleccionable. Cubrir en negro tampoco elimina el contenido subyacente y no debe usarse como redacción segura de información sensible.
 
-## v1.1.0 — 2026-09-13
+## v1.2.0 — 2026-09-13
 
-- Corregido: **Seleccionar** ahora reconoce texto original del PDF, no solo objetos añadidos por el editor.
-- Corregido: selección de texto existente por `pointerup` para mejorar el toque en iPhone/iPad.
-- Mejorado: áreas táctiles del texto más grandes sin agrandar el área que se cubre al reemplazarlo.
-- Corregido: el botón **↩ Deshacer** ya no se oculta en pantallas móviles.
-- Redo sigue disponible en escritorio y mediante `Ctrl/Cmd + Shift + Z` o `Ctrl/Cmd + Y`.
+- Corregido un fallo real en la capa de texto: después de extraer el texto, una condición descartaba el modo **Seleccionar** y solo permitía **Editar texto**.
+- Añadido fallback por proximidad: si el área táctil del texto queda ligeramente desalineada, el editor busca el bloque de texto más cercano al toque.
+- **Seleccionar** y **Editar texto** usan la misma capa de texto original y ambos pueden abrir el editor.
+- Diseño de iPhone rehecho: encabezado en dos filas y respetando `safe-area-inset-top`.
+- Cambiado el modo de barra de estado de iOS para evitar que hora/señal/batería se monten sobre el encabezado.
+- Herramientas móviles en cuadrícula de 4 columnas, sin barra horizontal recortada.
+- Pantalla inicial más compacta en móvil.
+- **↩ Deshacer** permanece visible.
+- Preparado para distribución con una sola carpeta principal y sin subcarpetas.

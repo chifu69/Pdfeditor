@@ -1,7 +1,7 @@
-const CACHE = 'pdf-editor-pwa-v1.1.0';
+const CACHE = 'pdf-editor-pwa-v1.2.0';
 const APP_SHELL = [
   './', './index.html', './styles.css', './app.js', './manifest.webmanifest',
-  './icons/icon-192.png', './icons/icon-512.png'
+  './icon-192.png', './icon-512.png'
 ];
 const RUNTIME_DEPS = [
   'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.3.289/build/pdf.mjs',

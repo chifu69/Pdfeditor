@@ -284,7 +284,7 @@ async function renderTextHitLayer(sourcePage, seq) {
   if (!textSelectable) return;
   try {
     const content = await sourcePage.getTextContent();
-    if (seq !== state.renderSeq || state.tool !== 'editText') return;
+    if (seq !== state.renderSeq || !['select','editText'].includes(state.tool)) return;
     content.items.forEach((item, idx) => {
       if (!item.str?.trim()) return;
       const tx = pdfjsLib.Util.transform(state.viewport.transform, item.transform);
@@ -460,6 +460,7 @@ function setTool(tool) {
   els.imageBtn.classList.toggle('active', tool === 'imagePlacement');
   els.signatureBtn.classList.remove('active');
   els.stage.classList.toggle('tool-editText', tool === 'editText');
+  els.stage.classList.toggle('tool-selectText', tool === 'select');
   els.textHitLayer.style.pointerEvents = ['select','editText'].includes(tool) ? 'auto' : 'none';
   renderCurrentPage({keepScroll:true});
 }
@@ -467,6 +468,29 @@ function setTool(tool) {
 function stagePointFromEvent(e) {
   const rect = els.stage.getBoundingClientRect();
   return {x:Math.max(0,Math.min(rect.width,e.clientX-rect.left)), y:Math.max(0,Math.min(rect.height,e.clientY-rect.top))};
+}
+
+function findTextAtPoint(point, tolerance = 14) {
+  if (!state.textItems.length) return null;
+  const stageRect = els.stage.getBoundingClientRect();
+  let best = null;
+  let bestDistance = Infinity;
+  for (const meta of state.textItems) {
+    const r = meta.box?.getBoundingClientRect();
+    if (!r) continue;
+    const left = r.left - stageRect.left;
+    const top = r.top - stageRect.top;
+    const right = left + r.width;
+    const bottom = top + r.height;
+    const dx = point.x < left ? left - point.x : point.x > right ? point.x - right : 0;
+    const dy = point.y < top ? top - point.y : point.y > bottom ? point.y - bottom : 0;
+    const distance = Math.hypot(dx, dy);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = meta;
+    }
+  }
+  return bestDistance <= tolerance ? best : null;
 }
 function addAnnotation(ann) {
   const page = currentPageInfo();
@@ -502,6 +526,13 @@ els.stage.addEventListener('pointerdown', e => {
     els.stage.setPointerCapture(e.pointerId);
     renderOverlay();
     return;
+  }
+  if (['select','editText'].includes(state.tool)) {
+    const meta = findTextAtPoint(p, state.tool === 'editText' ? 20 : 14);
+    if (meta) {
+      editExistingText(meta);
+      return;
+    }
   }
   if (state.tool === 'select') {
     state.selectedId = null;
