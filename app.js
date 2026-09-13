@@ -1,3 +1,5 @@
+import { groupTextMetasIntoBlocks } from './text-blocks.js';
+
 let pdfjsLib;
 let pdfJsBase = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.3.289';
 try {
@@ -285,28 +287,36 @@ async function renderTextHitLayer(sourcePage, seq) {
   try {
     const content = await sourcePage.getTextContent();
     if (seq !== state.renderSeq || !['select','editText'].includes(state.tool)) return;
+
+    const rawMetas = [];
     content.items.forEach((item, idx) => {
       if (!item.str?.trim()) return;
       const tx = pdfjsLib.Util.transform(state.viewport.transform, item.transform);
       const fontHeight = Math.max(6, Math.hypot(tx[2], tx[3]));
       const width = Math.max(4, Math.abs(item.width * state.viewport.scale));
       const angle = Math.atan2(tx[1], tx[0]);
-      const box = document.createElement('div');
-      box.className = 'text-hit';
-      const hitPadX = 4;
       const exactTop = tx[5] - fontHeight;
       const exactHeight = fontHeight * 1.1;
-      const hitHeight = Math.max(24, exactHeight + 8);
-      const hitTop = exactTop - (hitHeight - exactHeight) / 2;
-      box.style.left = `${tx[4] - hitPadX}px`;
-      box.style.top = `${hitTop}px`;
-      box.style.width = `${Math.max(14, width + hitPadX * 2)}px`;
-      box.style.height = `${hitHeight}px`;
+      rawMetas.push({item, idx, x:tx[4], y:exactTop, width, height:exactHeight, fontHeight, angle});
+    });
+
+    const targets = state.tool === 'editText' ? groupTextMetasIntoBlocks(rawMetas) : rawMetas;
+    state.textItems = targets;
+
+    targets.forEach((meta, idx) => {
+      const box = document.createElement('div');
+      box.className = meta.isTextBlock ? 'text-hit text-block-hit' : 'text-hit';
+      const hitPadX = meta.isTextBlock ? 3 : 4;
+      const hitPadY = meta.isTextBlock ? 3 : Math.max(0, (Math.max(24, meta.height + 8) - meta.height) / 2);
+      box.style.left = `${meta.x - hitPadX}px`;
+      box.style.top = `${meta.y - hitPadY}px`;
+      box.style.width = `${Math.max(14, meta.width + hitPadX * 2)}px`;
+      box.style.height = `${Math.max(meta.isTextBlock ? 18 : 24, meta.height + hitPadY * 2)}px`;
       box.style.transformOrigin = '0 100%';
-      if (Math.abs(angle) > .01) box.style.transform = `rotate(${angle}rad)`;
-      box.title = item.str;
-      const meta = {item, box, idx, x:tx[4], y:exactTop, width, height:exactHeight, fontHeight};
-      state.textItems.push(meta);
+      if (Math.abs(meta.angle || 0) > .01) box.style.transform = `rotate(${meta.angle}rad)`;
+      box.title = meta.text || meta.item?.str || '';
+      box.dataset.textBlock = String(idx);
+      meta.box = box;
       box.addEventListener('pointerup', e => {
         e.preventDefault();
         e.stopPropagation();
@@ -314,6 +324,10 @@ async function renderTextHitLayer(sourcePage, seq) {
       });
       els.textHitLayer.appendChild(box);
     });
+
+    if (state.tool === 'editText' && targets.length === 0) {
+      toast('Esta página no contiene texto editable. Puede ser un escaneo o texto convertido a dibujo.');
+    }
   } catch (err) {
     console.warn('Text extraction failed', err);
   }
@@ -583,7 +597,7 @@ async function editExistingText(meta) {
     </div>
     <div class="form-row"><label>Fuente</label><select id="editTextFont"><option value="Helvetica">Helvetica</option><option value="TimesRoman">Times</option><option value="Courier">Courier</option></select></div>
     <p class="muted">El PDF se mantiene visualmente: se cubre el texto original y se coloca el nuevo encima. Esto funciona incluso cuando el PDF no permite editar su estructura interna como Word.</p>`;
-  wrap.querySelector('#editTextValue').value = meta.item.str;
+  wrap.querySelector('#editTextValue').value = meta.text ?? meta.item?.str ?? '';
   wrap.querySelector('#editTextSize').value = approxPt.toFixed(1);
   const choicePromise = openModal({title:'Editar texto',body:wrap,actions:[{label:'Cancelar',value:null},{label:'Aplicar',value:'apply',kind:'primary'}]});
   setTimeout(() => {
@@ -594,7 +608,7 @@ async function editExistingText(meta) {
   const choice = await choicePromise;
   if (choice !== 'apply') return;
   addAnnotation({type:'replaceText',rect,text:wrap.querySelector('#editTextValue').value,fontSize:Number(wrap.querySelector('#editTextSize').value)||approxPt,color:wrap.querySelector('#editTextColor').value,font:wrap.querySelector('#editTextFont').value,opacity:1});
-  setTool('select');
+  if (state.tool === 'editText') renderOverlay();
 }
 async function createTextAt(viewPoint) {
   const pdfPoint = state.viewport.convertToPdfPoint(viewPoint.x,viewPoint.y);

@@ -73,6 +73,8 @@ button:disabled { opacity:.4; cursor:not-allowed; }
 .overlay-svg { overflow:visible; }
 .text-hit { position:absolute; border:1px dashed transparent; pointer-events:auto; cursor:text; }
 .tool-editText .text-hit { border-color:rgba(59,130,246,.35); background:rgba(59,130,246,.06); }
+.tool-editText .text-block-hit { border:2px solid rgba(59,130,246,.82); background:rgba(59,130,246,.08); border-radius:3px; box-shadow:0 0 0 1px rgba(255,255,255,.22) inset; }
+.tool-editText .text-block-hit:active { background:rgba(59,130,246,.22); border-color:#60a5fa; }
 .tool-editText .text-hit:hover, .tool-selectText .text-hit:hover { background:rgba(59,130,246,.18); border-color:rgba(59,130,246,.5); }
 .tool-selectText .text-hit { cursor:text; }
 .selection-hit { position:absolute; pointer-events:auto; cursor:pointer; background:transparent; border:1px solid transparent; }
