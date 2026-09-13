@@ -1,63 +1,85 @@
-# PDF Editor PWA
+# PDF Editor PWA 1.5.0
 
-Editor de PDF para navegador. Los archivos se procesan localmente en el dispositivo.
+Editor local de PDF para navegador, instalable y utilizable sin conexión después de completar la primera carga. No envía los documentos a un servidor.
 
-## Ejecutar / publicar
+## Ejecutar
 
-Los módulos ES y el Service Worker requieren HTTP/HTTPS. No abras `index.html` directamente con `file://`.
+Sirve **esta carpeta completa**, incluido `vendor/`, por HTTP/HTTPS:
 
-Para una prueba local con Python:
-
-```bash
-python -m http.server 8080
+```sh
+python3 -m http.server 8080
 ```
 
-Luego abre `http://localhost:8080`.
+Abre `http://localhost:8080`. Para usarlo desde un iPhone, publica la carpeta en un hosting HTTPS y abre la URL en Safari. En Compartir, elige **Añadir a pantalla de inicio**. `file://` no admite módulos ni service workers.
 
-La carpeta también se puede publicar directamente en GitHub Pages.
+## Editar texto
 
-## Funciones
+1. Abre un PDF con texto seleccionable.
+2. Pulsa **Editar texto**. Los cuadros representan líneas o párrafos detectados; las columnas separadas conservan sus propios cuadros.
+3. Toca un cuadro, cambia su texto, tamaño, fuente o color y pulsa **Aplicar**.
+4. Toca de nuevo el mismo bloque para modificar el reemplazo actual. No se añaden reemplazos duplicados.
+5. Usa **Deshacer/Rehacer** para revertir revisiones. Ambos botones están disponibles en móvil. Dentro de un campo, Ctrl/Cmd+Z conserva el undo nativo del campo.
+6. Pulsa **Exportar PDF** para obtener una copia con los cambios.
 
-- Abrir PDFs locales sin subirlos a un servidor.
-- Renderizado con PDF.js.
-- **Seleccionar** texto original del PDF y abrirlo para reemplazo visual.
-- **Editar texto** muestra zonas táctiles sobre el texto original.
-- Búsqueda del bloque de texto más cercano cuando el toque queda unos píxeles fuera, pensada para iPhone/iPad.
-- Agregar texto.
-- Borrado visual / whiteout.
-- Cubrir en negro (ocultación visual; no es redacción segura).
-- Resaltado y dibujo libre.
-- Insertar PNG/JPEG.
-- Crear y colocar firma manuscrita.
-- Rotar, duplicar, eliminar y reordenar páginas.
-- Undo/redo; **↩ Deshacer** queda visible en móvil.
-- Exportar un PDF nuevo.
-- PWA instalable.
+El texto se distribuye en líneas y reduce su tamaño si hace falta para caber. La vista previa y la exportación comparten las mismas métricas, saltos y posiciones. Un texto que no cabe ni a 4 pt, o contiene caracteres no admitidos por la fuente, muestra un error antes de aplicarlo.
 
-## Límites importantes
+Seleccionar y Editar texto permiten desplazar la página con el dedo. Borrar, Cubrir negro, Resaltar y Dibujar capturan el gesto para crear la anotación. El recuadro de selección no bloquea la reedición.
 
-Un PDF no funciona internamente como Word. El texto puede estar fragmentado, convertido a curvas, usar fuentes especiales o ser una imagen escaneada. La edición de texto existente de este build se hace cubriendo visualmente el texto original y escribiendo el nuevo encima.
+## Guardado local y offline
 
-Este build **no incluye OCR**. Si un PDF es un escaneo/foto y no contiene capa de texto, no habrá texto original seleccionable. Cubrir en negro tampoco elimina el contenido subyacente y no debe usarse como redacción segura de información sensible.
+- IndexedDB conserva el último documento abierto, sus anotaciones, las páginas y hasta 60 pasos de historial. El indicador **Guardado en este dispositivo** confirma la escritura.
+- Tras recargar, pulsa **Recuperar trabajo**. **Borrar copia guardada** elimina esa copia local. Abrir otro documento sustituye la copia anterior.
+- El navegador puede borrar su almacenamiento; exporta los documentos que quieras conservar permanentemente. Si se agota el espacio, el indicador lo comunica.
+- Los PDF cifrados pueden visualizarse, pero no se guardan para recuperación ni se exportan editados.
+- PDF.js, pdf-lib, worker, CMaps, fuentes estándar y WASM están incluidos en `vendor/`. La instalación offline solo se completa cuando todos los recursos están almacenados.
+- Una actualización espera a que pulses **Actualizar**; se guarda el trabajo antes de activarla y recargar. La caché utiliza una huella del contenido para distinguir builds.
 
-## v1.5.0 — 2026-09-13
+Después de cualquier cambio en archivos de la aplicación, actualiza el inventario offline:
 
-- Mantiene la edición sobre la **TextLayer oficial de PDF.js**.
-- Corrige un fallo de Safari 26.x donde `PDFPageProxy.getTextContent()` puede lanzar `TypeError` aunque el PDF se vea correctamente. Si ocurre, el editor consume `streamTextContent()` mediante `getReader()` y reconstruye el contenido de texto sin depender del iterador asíncrono defectuoso.
-- Los cuadros de **Editar texto** se calculan a partir de las posiciones reales de los spans que renderiza el navegador, lo que mejora especialmente Safari/iPhone.
-- Se desactiva el autoajuste de tamaño de texto de iOS dentro de la capa de medición para evitar desplazamientos.
-- Los fragmentos siguen agrupándose en **líneas/bloques** y columnas lejanas permanecen separadas.
-- Cambiar de herramienta ya no vuelve a renderizar todo el canvas PDF; solo reconstruye la capa interactiva, evitando carreras de render en móvil.
-- Si PDF.js encuentra texto pero la medición DOM falla, queda un fallback de geometría en vez de mostrar silenciosamente cero cuadros.
-- **↩ Deshacer** permanece visible y no se añadió OCR.
-- Distribución: una sola carpeta principal y sin subcarpetas.
+```sh
+node scripts/update-offline.mjs
+```
 
-## Edición de texto v1.5.0
+Publica todos los archivos juntos. No se necesita backend, bundler ni CDN en tiempo de ejecución.
 
-1. Abre un PDF que contenga texto real.
-2. Pulsa **Editar texto**.
-3. Deben aparecer cuadros azules alrededor de las líneas/bloques detectados.
-4. Toca un cuadro para editar ese bloque.
-5. Después de aplicar el cambio, **Editar texto permanece activo** para seguir con otro bloque.
+## Límites del motor
 
-Este build no incluye OCR.
+- La edición es **visual**: cubre el texto original con blanco y dibuja el nuevo. El texto original permanece en el PDF y puede aparecer al buscar/copiar. Cubrir negro no es redacción segura.
+- No incluye OCR: texto escaneado, imágenes y letras convertidas en curvas no se detectan como texto editable.
+- El editor utiliza Helvetica, Times o Courier. No reconstruye fuentes incrustadas, estilos mixtos ni todos los alfabetos Unicode. Valida los caracteres antes de exportar.
+- La agrupación de párrafos es geométrica y conservadora. Tablas complejas, texto vertical y diseños con fuentes mezcladas pueden quedar divididos en varios cuadros. Los fragmentos girados se pueden editar individualmente.
+- El reemplazo usa fondo blanco; documentos con fondos ilustrados o coloreados necesitan otra estrategia de edición.
+- La edición se realiza en un diálogo; no es un editor de contenido PDF equivalente a Acrobat ni un procesador de texto.
+
+## Archivos principales
+
+- `app.js`: apertura, render cancelable, TextLayer canónica, selección, edición, anotaciones, historial y exportación.
+- `text-blocks.js`: fragmentos → líneas → párrafos, manteniendo columnas separadas.
+- `text-layout.js`: composición en puntos PDF compartida por SVG y exportación.
+- `storage.js`: transacciones IndexedDB.
+- `compat.js`, `pdf-worker.js`: compatibilidad de navegador y arranque del worker.
+- `sw.js`, `offline-assets.js`, `manifest.webmanifest`: instalación y caché offline.
+- `vendor/`: PDF.js 6.3.289 (legacy), pdf-lib 1.17.1 y sus licencias.
+
+## Pruebas
+
+Node.js 20 o superior para las pruebas; la aplicación no requiere Node en producción.
+
+```sh
+npm install
+npx playwright install chromium
+npm test
+# Con el servidor en localhost:8080:
+npm run test:e2e
+```
+
+Para probar WebKit en un sistema compatible:
+
+```sh
+npx playwright install webkit
+TEST_BROWSER=webkit npm run test:e2e
+```
+
+`TEST_URL` cambia la URL del servidor; `TEST_OUTPUT` cambia la carpeta de PDF/capturas. `CHROME_PATH` permite usar un Chrome instalado. `PLAYWRIGHT_MODULE` permite usar una instalación de Playwright existente.
+
+La suite prueba PDF real, párrafos, columnas, toques, reedición, undo/redo, exportación y coordenadas, rotación, páginas vacías, recuperación, offline, fallback geométrico y cambios estructurales. Resultados y limitaciones de la verificación en `docs/verification.md`.

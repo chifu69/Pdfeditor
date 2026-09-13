@@ -82,7 +82,7 @@ export function groupTextMetasIntoBlocks(metas, options = {}) {
     const contiguous = gap <= maxGap && notFarLeft;
     const forcedBreak = previous.item?.hasEOL === true;
 
-    if (!forcedBreak && sameBaseline && sameAngle && contiguous) current.push(meta);
+    if (Math.abs(meta.angle || 0) < .001 && Math.abs(previous.angle || 0) < .001 && !forcedBreak && sameBaseline && sameAngle && contiguous) current.push(meta);
     else {
       flush();
       current.push(meta);
@@ -149,5 +149,33 @@ export function groupTextLayerEntriesIntoBlocks(entries, options = {}) {
       blocks.push(block);
     }
   }
-  return blocks;
+  if (options.paragraphs === false) return blocks;
+  const paragraphs = [];
+  for (const line of blocks) {
+    let match = null;
+    let distance = Infinity;
+    for (const paragraph of paragraphs) {
+      const last = paragraph.lines[paragraph.lines.length - 1];
+      const font = Math.min(last.fontHeight, line.fontHeight);
+      const gap = line.y - (last.y + last.height);
+      const aligned = Math.abs(last.x - line.x) <= Math.max(3, font * .65);
+      const similar = Math.max(last.fontHeight,line.fontHeight) / Math.max(1,font) < 1.2;
+      const sameAngle = angleDistance(last.angle,line.angle) < .03;
+      // Conservative: don't combine rotated runs or side-by-side table cells.
+      if (Math.abs(line.angle) < .03 && aligned && similar && sameAngle && gap >= -1 && gap <= font * .65 && gap < distance) {
+        match = paragraph; distance = gap;
+      }
+    }
+    if (!match) paragraphs.push({...line, items:[...line.items], lines:[line]});
+    else {
+      match.lines.push(line);
+      match.items.push(...line.items);
+      const right = Math.max(match.x + match.width,line.x + line.width);
+      match.x = Math.min(match.x,line.x);
+      match.width = right - match.x;
+      match.height = line.y + line.height - match.y;
+      match.text += '\n' + line.text;
+    }
+  }
+  return paragraphs.map((block,idx)=>({...block,idx}));
 }

@@ -1,0 +1,8 @@
+{
+  "name": "pdf-editor-pwa",
+  "version": "1.5.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node --test tests/unit.test.mjs", "test:e2e": "node tests/e2e.mjs", "start": "python3 -m http.server 8080" },
+  "devDependencies": { "playwright": "1.62.1" }
+}

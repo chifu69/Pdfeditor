@@ -26,6 +26,7 @@
         <button id="undoBtn" class="icon-btn" title="Deshacer" aria-label="Deshacer" disabled>↩</button>
         <button id="redoBtn" class="icon-btn" title="Rehacer" aria-label="Rehacer" disabled>↷</button>
         <button id="openBtn" class="btn secondary">Abrir PDF</button>
+        <button id="updateBtn" class="btn secondary hidden">Actualizar</button>
         <button id="exportBtn" class="btn primary" disabled>Exportar PDF</button>
       </div>
     </header>
@@ -57,10 +58,12 @@
           <h1>Edita PDFs directamente en tu dispositivo</h1>
           <p>Texto, imágenes, firma, dibujo, redacción y manejo de páginas. El archivo se procesa localmente en el navegador.</p>
           <button id="emptyOpenBtn" class="btn primary large">Seleccionar PDF</button>
+          <div class="recovery-actions"><button id="restoreBtn" class="btn secondary hidden">Recuperar trabajo</button><button id="forgetBtn" class="btn secondary hidden">Borrar copia guardada</button></div>
           <div class="drop-hint">También puedes arrastrar un PDF aquí</div>
         </div>
 
         <div id="documentView" class="document-view hidden">
+          <div id="saveStatus" role="status"></div>
           <div class="page-controls">
             <button id="prevPageBtn" class="icon-btn" aria-label="Página anterior">‹</button>
             <div class="page-indicator"><input id="pageInput" inputmode="numeric" value="1" aria-label="Número de página" /> <span id="pageTotal">/ 0</span></div>
