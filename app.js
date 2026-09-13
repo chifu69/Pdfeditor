@@ -278,8 +278,10 @@ async function renderCurrentPage({keepScroll = false} = {}) {
 async function renderTextHitLayer(sourcePage, seq) {
   els.textHitLayer.innerHTML = '';
   state.textItems = [];
+  const textSelectable = ['select','editText'].includes(state.tool);
   els.stage.classList.toggle('tool-editText', state.tool === 'editText');
-  if (state.tool !== 'editText') return;
+  els.stage.classList.toggle('tool-selectText', state.tool === 'select');
+  if (!textSelectable) return;
   try {
     const content = await sourcePage.getTextContent();
     if (seq !== state.renderSeq || state.tool !== 'editText') return;
@@ -291,16 +293,25 @@ async function renderTextHitLayer(sourcePage, seq) {
       const angle = Math.atan2(tx[1], tx[0]);
       const box = document.createElement('div');
       box.className = 'text-hit';
-      box.style.left = `${tx[4]}px`;
-      box.style.top = `${tx[5] - fontHeight}px`;
-      box.style.width = `${width}px`;
-      box.style.height = `${fontHeight * 1.1}px`;
+      const hitPadX = 4;
+      const exactTop = tx[5] - fontHeight;
+      const exactHeight = fontHeight * 1.1;
+      const hitHeight = Math.max(24, exactHeight + 8);
+      const hitTop = exactTop - (hitHeight - exactHeight) / 2;
+      box.style.left = `${tx[4] - hitPadX}px`;
+      box.style.top = `${hitTop}px`;
+      box.style.width = `${Math.max(14, width + hitPadX * 2)}px`;
+      box.style.height = `${hitHeight}px`;
       box.style.transformOrigin = '0 100%';
       if (Math.abs(angle) > .01) box.style.transform = `rotate(${angle}rad)`;
       box.title = item.str;
-      const meta = {item, box, idx, x:tx[4], y:tx[5]-fontHeight, width, height:fontHeight*1.1, fontHeight};
+      const meta = {item, box, idx, x:tx[4], y:exactTop, width, height:exactHeight, fontHeight};
       state.textItems.push(meta);
-      box.addEventListener('click', e => { e.stopPropagation(); editExistingText(meta); });
+      box.addEventListener('pointerup', e => {
+        e.preventDefault();
+        e.stopPropagation();
+        editExistingText(meta);
+      });
       els.textHitLayer.appendChild(box);
     });
   } catch (err) {
@@ -449,7 +460,7 @@ function setTool(tool) {
   els.imageBtn.classList.toggle('active', tool === 'imagePlacement');
   els.signatureBtn.classList.remove('active');
   els.stage.classList.toggle('tool-editText', tool === 'editText');
-  els.textHitLayer.style.pointerEvents = tool === 'editText' ? 'auto' : 'none';
+  els.textHitLayer.style.pointerEvents = ['select','editText'].includes(tool) ? 'auto' : 'none';
   renderCurrentPage({keepScroll:true});
 }
 
@@ -543,7 +554,13 @@ async function editExistingText(meta) {
     <p class="muted">El PDF se mantiene visualmente: se cubre el texto original y se coloca el nuevo encima. Esto funciona incluso cuando el PDF no permite editar su estructura interna como Word.</p>`;
   wrap.querySelector('#editTextValue').value = meta.item.str;
   wrap.querySelector('#editTextSize').value = approxPt.toFixed(1);
-  const choice = await openModal({title:'Editar texto',body:wrap,actions:[{label:'Cancelar',value:null},{label:'Aplicar',value:'apply',kind:'primary'}]});
+  const choicePromise = openModal({title:'Editar texto',body:wrap,actions:[{label:'Cancelar',value:null},{label:'Aplicar',value:'apply',kind:'primary'}]});
+  setTimeout(() => {
+    const field = wrap.querySelector('#editTextValue');
+    field?.focus();
+    field?.select();
+  }, 20);
+  const choice = await choicePromise;
   if (choice !== 'apply') return;
   addAnnotation({type:'replaceText',rect,text:wrap.querySelector('#editTextValue').value,fontSize:Number(wrap.querySelector('#editTextSize').value)||approxPt,color:wrap.querySelector('#editTextColor').value,font:wrap.querySelector('#editTextFont').value,opacity:1});
   setTool('select');

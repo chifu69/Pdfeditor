@@ -1,2 +1,2 @@
-PDF Editor PWA v1.0.0
+PDF Editor PWA v1.1.0
 Build: 2026-09-13

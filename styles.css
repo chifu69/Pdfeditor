@@ -73,7 +73,8 @@ button:disabled { opacity:.4; cursor:not-allowed; }
 .overlay-svg { overflow:visible; }
 .text-hit { position:absolute; border:1px dashed transparent; pointer-events:auto; cursor:text; }
 .tool-editText .text-hit { border-color:rgba(59,130,246,.35); background:rgba(59,130,246,.06); }
-.tool-editText .text-hit:hover { background:rgba(59,130,246,.18); }
+.tool-editText .text-hit:hover, .tool-selectText .text-hit:hover { background:rgba(59,130,246,.18); border-color:rgba(59,130,246,.5); }
+.tool-selectText .text-hit { cursor:text; }
 .selection-hit { position:absolute; pointer-events:auto; cursor:pointer; background:transparent; border:1px solid transparent; }
 .selection-hit:hover { border-color:rgba(96,165,250,.45); background:rgba(59,130,246,.04); }
 .selection-box { position:absolute; border:2px solid #3b82f6; background:rgba(59,130,246,.06); pointer-events:auto; cursor:pointer; }
@@ -111,7 +112,8 @@ button:disabled { opacity:.4; cursor:not-allowed; }
 @media (max-width: 700px) {
   .topbar { height:58px; min-height:58px; }
   .brand-subtitle { display:none; }
-  .top-actions .icon-btn { display:none; }
+  .top-actions #redoBtn { display:none; }
+  .top-actions #undoBtn { display:grid; flex:0 0 38px; }
   .btn { padding:8px 10px; font-size:12px; }
   .workspace { grid-template-columns:1fr; }
   .sidebar { display:none; }
