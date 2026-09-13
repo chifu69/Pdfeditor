@@ -1,6 +1,6 @@
-const CACHE = 'pdf-editor-pwa-v1.4.0';
+const CACHE = 'pdf-editor-pwa-v1.5.0';
 const APP_SHELL = [
-  './', './index.html', './styles.css', './app.js', './text-blocks.js', './manifest.webmanifest',
+  './', './index.html', './styles.css', './app.js', './text-blocks.js', './pdf-text.js', './manifest.webmanifest',
   './icon-192.png', './icon-512.png'
 ];
 const RUNTIME_DEPS = [

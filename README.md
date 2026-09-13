@@ -40,9 +40,10 @@ Un PDF no funciona internamente como Word. El texto puede estar fragmentado, con
 
 Este build **no incluye OCR**. Si un PDF es un escaneo/foto y no contiene capa de texto, no habrá texto original seleccionable. Cubrir en negro tampoco elimina el contenido subyacente y no debe usarse como redacción segura de información sensible.
 
-## v1.4.0 — 2026-09-13
+## v1.5.0 — 2026-09-13
 
-- Rehecha la edición de texto existente sobre la **TextLayer oficial de PDF.js** en vez de reconstruir manualmente las coordenadas de cada texto.
+- Mantiene la edición sobre la **TextLayer oficial de PDF.js**.
+- Corrige un fallo de Safari 26.x donde `PDFPageProxy.getTextContent()` puede lanzar `TypeError` aunque el PDF se vea correctamente. Si ocurre, el editor consume `streamTextContent()` mediante `getReader()` y reconstruye el contenido de texto sin depender del iterador asíncrono defectuoso.
 - Los cuadros de **Editar texto** se calculan a partir de las posiciones reales de los spans que renderiza el navegador, lo que mejora especialmente Safari/iPhone.
 - Se desactiva el autoajuste de tamaño de texto de iOS dentro de la capa de medición para evitar desplazamientos.
 - Los fragmentos siguen agrupándose en **líneas/bloques** y columnas lejanas permanecen separadas.
@@ -51,7 +52,7 @@ Este build **no incluye OCR**. Si un PDF es un escaneo/foto y no contiene capa d
 - **↩ Deshacer** permanece visible y no se añadió OCR.
 - Distribución: una sola carpeta principal y sin subcarpetas.
 
-## Edición de texto v1.4.0
+## Edición de texto v1.5.0
 
 1. Abre un PDF que contenga texto real.
 2. Pulsa **Editar texto**.

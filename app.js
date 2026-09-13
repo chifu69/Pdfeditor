@@ -1,4 +1,5 @@
 import { groupTextMetasIntoBlocks, groupTextLayerEntriesIntoBlocks } from './text-blocks.js';
+import { getTextContentCompat } from './pdf-text.js';
 
 let pdfjsLib;
 let pdfJsBase = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@6.3.289';
@@ -291,7 +292,7 @@ async function renderTextHitLayer(sourcePage, seq) {
   if (!textSelectable) return;
 
   try {
-    const content = await sourcePage.getTextContent({includeMarkedContent:true});
+    const content = await getTextContentCompat(sourcePage, {includeMarkedContent:true});
     if (seq !== state.renderSeq || !['select','editText'].includes(state.tool)) return;
 
     const textItems = content.items.filter(item => typeof item?.str === 'string');
