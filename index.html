@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#111827" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="PDF Editor" />
+  <title>PDF Editor PWA</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">PDF</div>
+        <div>
+          <div class="brand-title">PDF Editor</div>
+          <div id="fileMeta" class="brand-subtitle">Local • privado • sin subir archivos</div>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button id="undoBtn" class="icon-btn" title="Deshacer" aria-label="Deshacer" disabled>↶</button>
+        <button id="redoBtn" class="icon-btn" title="Rehacer" aria-label="Rehacer" disabled>↷</button>
+        <button id="openBtn" class="btn secondary">Abrir PDF</button>
+        <button id="exportBtn" class="btn primary" disabled>Exportar PDF</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <aside id="sidebar" class="sidebar">
+        <div class="sidebar-head">
+          <span>Páginas</span>
+          <span id="pageCount" class="pill">0</span>
+        </div>
+        <div id="thumbs" class="thumbs"></div>
+      </aside>
+
+      <section class="editor-area">
+        <div id="toolbar" class="toolbar" aria-label="Herramientas">
+          <button class="tool active" data-tool="select" title="Seleccionar">⌖<span>Seleccionar</span></button>
+          <button class="tool" data-tool="editText" title="Editar texto existente">T✎<span>Editar texto</span></button>
+          <button class="tool" data-tool="addText" title="Agregar texto">T+<span>Texto</span></button>
+          <button class="tool" data-tool="whiteout" title="Cubrir / borrar visualmente">▭<span>Borrar</span></button>
+          <button class="tool" data-tool="redact" title="Cubrir en negro; no elimina el contenido interno">▰<span>Cubrir negro</span></button>
+          <button class="tool" data-tool="highlight" title="Resaltar">▱<span>Resaltar</span></button>
+          <button class="tool" data-tool="draw" title="Dibujar">✎<span>Dibujar</span></button>
+          <button id="imageBtn" class="tool" title="Insertar imagen">▧<span>Imagen</span></button>
+          <button id="signatureBtn" class="tool" title="Firma">〰<span>Firma</span></button>
+        </div>
+
+        <div id="emptyState" class="empty-state">
+          <div class="empty-icon">PDF</div>
+          <h1>Edita PDFs directamente en tu dispositivo</h1>
+          <p>Texto, imágenes, firma, dibujo, redacción y manejo de páginas. El archivo se procesa localmente en el navegador.</p>
+          <button id="emptyOpenBtn" class="btn primary large">Seleccionar PDF</button>
+          <div class="drop-hint">También puedes arrastrar un PDF aquí</div>
+        </div>
+
+        <div id="documentView" class="document-view hidden">
+          <div class="page-controls">
+            <button id="prevPageBtn" class="icon-btn" aria-label="Página anterior">‹</button>
+            <div class="page-indicator"><input id="pageInput" inputmode="numeric" value="1" aria-label="Número de página" /> <span id="pageTotal">/ 0</span></div>
+            <button id="nextPageBtn" class="icon-btn" aria-label="Página siguiente">›</button>
+            <div class="control-divider"></div>
+            <button id="zoomOutBtn" class="icon-btn" aria-label="Alejar">−</button>
+            <span id="zoomLabel" class="zoom-label">100%</span>
+            <button id="zoomInBtn" class="icon-btn" aria-label="Acercar">+</button>
+            <button id="fitBtn" class="mini-btn">Ajustar</button>
+            <button id="pageToolsBtn" class="mini-btn mobile-page-tools">Página</button>
+          </div>
+          <div id="canvasScroller" class="canvas-scroller">
+            <div id="pageStage" class="page-stage">
+              <canvas id="pdfCanvas"></canvas>
+              <svg id="overlaySvg" class="overlay-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+              <div id="textHitLayer" class="text-hit-layer"></div>
+              <div id="selectionLayer" class="selection-layer"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <aside id="properties" class="properties">
+        <div class="properties-head"><span>Propiedades</span><button id="closePropertiesBtn" class="icon-btn properties-close" aria-label="Cerrar propiedades">×</button></div>
+        <div id="propertiesBody" class="properties-body">
+          <div class="muted">Selecciona una anotación para editarla.</div>
+        </div>
+        <div class="page-actions">
+          <div class="section-title">Página actual</div>
+          <div class="page-action-grid">
+            <button id="rotateLeftBtn" class="mini-btn" disabled>↺ 90°</button>
+            <button id="rotateRightBtn" class="mini-btn" disabled>↻ 90°</button>
+            <button id="duplicatePageBtn" class="mini-btn" disabled>Duplicar</button>
+            <button id="deletePageBtn" class="mini-btn danger" disabled>Eliminar</button>
+            <button id="moveUpBtn" class="mini-btn" disabled>↑ Mover</button>
+            <button id="moveDownBtn" class="mini-btn" disabled>↓ Mover</button>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <input id="pdfInput" type="file" accept="application/pdf,.pdf" hidden />
+  <input id="imageInput" type="file" accept="image/png,image/jpeg" hidden />
+
+  <div id="modalBackdrop" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+    <div id="modalCard" class="modal-card">
+      <div class="modal-head">
+        <h2 id="modalTitle">Editar</h2>
+        <button id="modalCloseBtn" class="icon-btn" aria-label="Cerrar">×</button>
+      </div>
+      <div id="modalBody" class="modal-body"></div>
+      <div id="modalFooter" class="modal-footer"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden" role="status"></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
