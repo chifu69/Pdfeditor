@@ -67,7 +67,7 @@ button:disabled { opacity:.4; cursor:not-allowed; }
 .control-divider { width:1px; height:24px; background:var(--line); margin:0 3px; }
 .zoom-label { min-width:44px; text-align:center; font-size:11px; color:var(--muted); }
 .canvas-scroller { flex:1; min-height:0; overflow:auto; padding:22px; overscroll-behavior:contain; background-color:#0b1020; background-image:radial-gradient(#1e293b 1px, transparent 1px); background-size:18px 18px; }
-.page-stage { position:relative; margin:auto; width:max-content; background:var(--paper); box-shadow:0 24px 55px rgba(0,0,0,.5); user-select:none; touch-action:none; }
+.page-stage { position:relative; margin:auto; width:max-content; background:var(--paper); box-shadow:0 24px 55px rgba(0,0,0,.5); user-select:none; }
 #pdfCanvas { display:block; background:white; }
 .overlay-svg, .pdfjs-text-layer, .text-hit-layer, .selection-layer { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
 .overlay-svg { overflow:visible; z-index:1; }
@@ -110,7 +110,7 @@ button:disabled { opacity:.4; cursor:not-allowed; }
 .modal-head h2 { font-size:16px; margin:0; }
 .modal-body { padding:14px; }
 .modal-footer { display:flex; justify-content:flex-end; gap:8px; padding:12px 14px; border-top:1px solid var(--line); }
-.signature-pad { width:100%; height:220px; border:1px dashed #64748b; border-radius:10px; background:white; touch-action:none; }
+.signature-pad { width:100%; height:220px; border:1px dashed #64748b; border-radius:10px; background:white; }
 .toast { position:fixed; z-index:70; left:50%; bottom:max(24px, env(safe-area-inset-bottom)); transform:translateX(-50%); max-width:min(520px,calc(100vw - 24px)); padding:10px 14px; border-radius:10px; background:#e2e8f0; color:#0f172a; font-weight:700; font-size:12px; box-shadow:0 12px 28px rgba(0,0,0,.35); }
 .drop-active::after { content:"Suelta el PDF para abrirlo"; position:absolute; inset:80px 24px 24px; z-index:20; display:grid; place-items:center; border:2px dashed #60a5fa; border-radius:20px; background:rgba(15,23,42,.86); color:#bfdbfe; font-size:22px; font-weight:850; pointer-events:none; }
 .loading-cover { position:absolute; inset:0; z-index:40; display:grid; place-items:center; background:rgba(11,16,32,.74); backdrop-filter:blur(4px); }
@@ -142,7 +142,7 @@ button:disabled { opacity:.4; cursor:not-allowed; }
     grid-template-columns:38px minmax(0,1fr) minmax(0,1fr);
     gap:8px;
   }
-  .top-actions #redoBtn { display:none; }
+
   .top-actions #undoBtn { display:grid; width:38px; }
   .top-actions .btn { width:100%; min-width:0; }
   .btn { padding:8px 9px; font-size:12px; }
@@ -177,7 +177,7 @@ button:disabled { opacity:.4; cursor:not-allowed; }
 .pdfjs-text-layer span:not(.markedContent) { font-size:calc(var(--text-scale-factor) * var(--font-height)); transform:rotate(var(--rotate,0deg)) scaleX(var(--scale-x,1)) scale(var(--min-font-size-inv)); }
 .measure-host { position:fixed; inset:auto; left:-100000px; top:0; overflow:visible; }
 .page-stage { touch-action:pan-x pan-y pinch-zoom; }
-.page-stage.tool-markup { touch-action:none; }
+.page-stage.tool-markup { }
 .selection-box { pointer-events:none; }
 .selection-box::after { display:none; }
 .text-hit { padding:0; margin:0; background:transparent; border-radius:2px; touch-action:pan-x pan-y pinch-zoom; }

@@ -1,10 +1,11 @@
 import './compat.js';
 import { groupTextLayerEntriesIntoBlocks } from './text-blocks.js';
 import { layoutText, frameCorners } from './text-layout.js';
-import { saveSession, loadSession, clearSession } from './storage.js';
-import * as pdfjsLib from './vendor/pdfjs/pdf.mjs';
-import './vendor/pdf-lib/pdf-lib.min.js';
-const pdfJsBase = './vendor/pdfjs';
+import { saveSession, loadSession, clearSession, normalizeSession } from './storage.js';
+import { getTextContentCompat } from './pdf-text.js';
+import * as pdfjsLib from './pdf.mjs';
+import './pdf-lib.min.js';
+const pdfJsBase = '.';
 pdfjsLib.GlobalWorkerOptions.workerSrc = './pdf-worker.js';
 async function ensurePdfLib() { return window.PDFLib; }
 let previewFonts;
@@ -56,7 +57,8 @@ const state = {
   modalResolver: null,
   textItems: [],
   activeTextLayer: null,
-  textSeq: 0, renderTask: null, renderQueue: Promise.resolve(), textCache: new Map(), tap: null, openSeq: 0
+  textSeq: 0, renderTask: null, renderQueue: Promise.resolve(), textCache: new Map(), tap: null, openSeq: 0,
+  assets: new Map(), assetByDataUrl: new Map()
 };
 
 function uid(prefix = 'a') {
@@ -64,6 +66,40 @@ function uid(prefix = 'a') {
 }
 function deepClonePages(pages = state.pages) {
   return structuredClone(pages);
+}
+function resetAssets(records = {}) {
+  state.assets = new Map();
+  state.assetByDataUrl = new Map();
+  for (const [id,value] of Object.entries(records || {})) {
+    const record=typeof value==='string'?{dataUrl:value}:value;
+    if (!record?.dataUrl) continue;
+    state.assets.set(id,{...record});
+    state.assetByDataUrl.set(record.dataUrl,id);
+  }
+}
+function registerAsset(dataUrl,{mime,name}={}) {
+  if (!dataUrl) return null;
+  const existing=state.assetByDataUrl.get(dataUrl);
+  if (existing) return existing;
+  const id=uid('asset');
+  const match=/^data:([^;,]+)/i.exec(dataUrl);
+  const record={dataUrl,mime:mime || match?.[1] || 'application/octet-stream',...(name?{name}:{})};
+  state.assets.set(id,record);
+  state.assetByDataUrl.set(dataUrl,id);
+  return id;
+}
+function assetRecord(ann) {
+  if (ann?.assetId && state.assets.has(ann.assetId)) return state.assets.get(ann.assetId);
+  if (ann?.dataUrl) return {dataUrl:ann.dataUrl,mime:ann.mime};
+  return null;
+}
+function serializedAssets() {
+  const used=new Set();
+  const scan=pages=>{for(const page of pages || [])for(const ann of page.annotations || [])if(ann.assetId)used.add(ann.assetId);};
+  scan(state.pages);
+  for(const snap of state.history)scan(snap.pages);
+  for(const snap of state.future)scan(snap.pages);
+  return Object.fromEntries([...used].flatMap(id=>state.assets.has(id)?[[id,structuredClone(state.assets.get(id))]]:[]));
 }
 function currentPageInfo() { return state.pages[state.current] || null; }
 function currentAnnotation() {
@@ -190,10 +226,10 @@ async function openPdfFile(file) {
     state.password = null;
     const loadingTask = pdfjsLib.getDocument({
       data: bytes.slice(),
-      cMapUrl: `${pdfJsBase}/cmaps/`,
+      cMapUrl: `${pdfJsBase}/`,
       cMapPacked: true,
-      standardFontDataUrl: `${pdfJsBase}/standard_fonts/`,
-      wasmUrl: `${pdfJsBase}/wasm/`
+      standardFontDataUrl: `${pdfJsBase}/`,
+      wasmUrl: `${pdfJsBase}/`
     });
     state.loadingTask = loadingTask;
     loadingTask.onPassword = (updatePassword, reason) => askPassword(updatePassword, reason);
@@ -205,6 +241,7 @@ async function openPdfFile(file) {
     state.originalBytes = bytes;
     state.fileName = file.name || 'document.pdf';
     state.textCache.clear();
+    resetAssets();
     previousTask?.destroy().catch(console.warn);
     state.pages = Array.from({length: doc.numPages}, (_, i) => ({
       id: uid('p'), sourceIndex: i, rotationDelta: 0, annotations: []
@@ -294,7 +331,7 @@ async function paintCurrentPage({keepScroll = false} = {}, seq) {
 }
 
 async function extractTextBlocks(sourcePage, token) {
-  const content = await sourcePage.getTextContent();
+  const content = await getTextContentCompat(sourcePage,{includeMarkedContent:true});
   const items = content.items.filter(item=>typeof item.str==='string');
   const canonical = sourcePage.getViewport({scale:1,rotation:0});
   const host=document.createElement('div');
@@ -362,7 +399,7 @@ async function renderTextHitLayer(sourcePage, seq) {
       state.textCache.set(sourceIndex,targets);
     }
     if (seq!==state.renderSeq || token!==state.textSeq) return;
-    state.textItems=targets.map(meta=>({...meta,...pdfRectToViewport(meta.rect)}));
+    state.textItems=targets.map(meta=>({...meta,...(meta.frame?frameToViewportBounds(meta.frame):pdfRectToViewport(meta.rect))}));
     for (const [idx,meta] of state.textItems.entries()) {
       const box=document.createElement('button');
       box.type='button';box.className='text-hit text-block-hit';
@@ -377,6 +414,11 @@ async function renderTextHitLayer(sourcePage, seq) {
   } catch (err) {console.warn(err);toast('No pude detectar el texto de esta página.',4000);}
 }
 
+function frameToViewportBounds(frame) {
+  const points=frameCorners(frame).map(point=>state.viewport.convertToViewportPoint(...point));
+  const xs=points.map(point=>point[0]),ys=points.map(point=>point[1]);
+  return {x:Math.min(...xs),y:Math.min(...ys),width:Math.max(...xs)-Math.min(...xs),height:Math.max(...ys)-Math.min(...ys)};
+}
 function pdfRectToViewport(rect) {
   const corners = [
     state.viewport.convertToViewportPoint(rect.x, rect.y),
@@ -442,8 +484,10 @@ function renderAnnotation(ann) {
     return;
   }
   if (ann.type === 'image' && ann.rect) {
+    const asset=assetRecord(ann);
+    if (!asset?.dataUrl) return;
     const r = pdfRectToViewport(ann.rect);
-    const image = svgEl('image', {x:r.x,y:r.y,width:r.width,height:r.height,href:ann.dataUrl,preserveAspectRatio:'none',opacity:ann.opacity ?? 1});
+    const image = svgEl('image', {x:r.x,y:r.y,width:r.width,height:r.height,href:asset.dataUrl,preserveAspectRatio:'none',opacity:ann.opacity ?? 1});
     els.overlay.appendChild(image);
   }
 }
@@ -464,6 +508,7 @@ function renderTextAnnotation(ann) {
 }
 
 function annotationViewportBounds(ann) {
+  if (ann.frame) return frameToViewportBounds(ann.frame);
   if (ann.rect) return pdfRectToViewport(ann.rect);
   if (ann.type === 'text') {
     const font=previewFonts[ann.font]||previewFonts.Helvetica;
@@ -689,7 +734,9 @@ async function editExistingText(meta, existing = null) {
   };
   const promise=openModal({title:existing?'Editar texto aplicado':'Editar bloque de texto',body:wrap,actions:[{label:'Cancelar',value:null},{label:'Aplicar',value:'apply',kind:'primary',validate}]});
   // Keep focus inside the user gesture so Safari can open the keyboard.
-  wrap.querySelector('#editTextValue').focus({preventScroll:true});
+  const editor=wrap.querySelector('#editTextValue');
+  try {editor.focus({preventScroll:true});} catch {editor.focus();}
+  editor.setSelectionRange(editor.value.length,editor.value.length);
   const result=await promise;
   if(result!=='apply' || currentPageInfo()!==page) return;
   if(existing) {
@@ -741,7 +788,8 @@ async function placePendingImage(viewPoint) {
   let x = p[0]-width/2, y = p[1]-height/2;
   x = Math.max(x1, Math.min(x, x2-width));
   y = Math.max(y1, Math.min(y, y2-height));
-  addAnnotation({type:'image',rect:{x,y,width,height},dataUrl:pending.dataUrl,mime:pending.mime,opacity:1});
+  const assetId=registerAsset(pending.dataUrl,{mime:pending.mime,name:pending.name});
+  addAnnotation({type:'image',rect:{x,y,width,height},assetId,mime:pending.mime,opacity:1});
   state.pendingImage = null;
   setTool('select');
 }
@@ -997,8 +1045,11 @@ async function applyAnnotationToPdf(doc,page,ann,fonts,imageCache,rgb) {
   if (ann.type==='draw' && ann.points?.length>1) {
     const c=hexToRgb(ann.color||'#111827'); for(let i=1;i<ann.points.length;i++)page.drawLine({start:{x:ann.points[i-1][0],y:ann.points[i-1][1]},end:{x:ann.points[i][0],y:ann.points[i][1]},thickness:ann.width||2,color:rgb(c.r,c.g,c.b),opacity:ann.opacity??1}); return;
   }
-  if (ann.type==='image' && ann.rect && ann.dataUrl) {
-    let embedded=imageCache.get(ann.dataUrl); if(!embedded){const bytes=dataUrlToBytes(ann.dataUrl);embedded=ann.mime==='image/jpeg'?await doc.embedJpg(bytes):await doc.embedPng(bytes);imageCache.set(ann.dataUrl,embedded);}
+  if (ann.type==='image' && ann.rect) {
+    const asset=assetRecord(ann);
+    if(!asset?.dataUrl)return;
+    let embedded=imageCache.get(ann.assetId || asset.dataUrl);
+    if(!embedded){const bytes=dataUrlToBytes(asset.dataUrl);const mime=asset.mime || ann.mime;embedded=mime==='image/jpeg'?await doc.embedJpg(bytes):await doc.embedPng(bytes);imageCache.set(ann.assetId || asset.dataUrl,embedded);}
     page.drawImage(embedded,{...ann.rect,opacity:ann.opacity??1});
   }
 }
@@ -1049,7 +1100,7 @@ function persistNow() {
     saveQueue=saveQueue.catch(()=>{}).then(()=>clearSession()).catch(console.warn);
     return saveQueue;
   }
-  const session={version:1,bytes:state.originalBytes.slice(),fileName:state.fileName,...snapshot(),history:structuredClone(state.history),future:structuredClone(state.future)};
+  const session={version:2,bytes:state.originalBytes.slice(),fileName:state.fileName,...snapshot(),assets:serializedAssets(),history:structuredClone(state.history),future:structuredClone(state.future)};
   saveQueue=saveQueue.catch(()=>{}).then(()=>saveSession(session)).then(()=>{$('saveStatus').textContent='Guardado en este dispositivo';}).catch(err=>{console.warn(err);$('saveStatus').textContent='No se pudo guardar. Exporta para conservar cambios.';});
   return saveQueue;
 }
@@ -1062,6 +1113,7 @@ $('restoreBtn').addEventListener('click',async()=>{
   if(!state.pdfJsDoc)return;
   clearTimeout(saveTimer);
   state.pages=saved.pages;state.current=saved.current;state.selectedId=null;
+  resetAssets(saved.assets);
   state.history=saved.history || [];state.future=saved.future || [];
   updateUndoRedo();buildThumbnails();await renderCurrentPage();persistSoon();
   $('restoreBtn').classList.add('hidden');$('forgetBtn').classList.add('hidden');
@@ -1073,5 +1125,6 @@ $('forgetBtn').addEventListener('click',async()=>{
   $('restoreBtn').classList.add('hidden');$('forgetBtn').classList.add('hidden');
 });
 loadSession().then(saved=>{
-  if(saved?.version===1 && saved.bytes && saved.pages?.length && !state.pdfJsDoc){restoredSession=saved;$('restoreBtn').classList.remove('hidden');$('forgetBtn').classList.remove('hidden');}
+  const normalized=normalizeSession(saved);
+  if(normalized?.version===2 && normalized.bytes && normalized.pages?.length && !state.pdfJsDoc){restoredSession=normalized;$('restoreBtn').classList.remove('hidden');$('forgetBtn').classList.remove('hidden');}
 }).catch(console.warn);
