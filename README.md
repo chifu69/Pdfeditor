@@ -1,9 +1,11 @@
-# PDF Editor PWA 1.7.0
+# PDF Editor PWA 1.7.1
 
 Editor PDF local, privado y preparado para funcionar completamente offline después de instalar/cargar todos sus recursos. El PDF se procesa en el dispositivo; no hay CDN ni backend de ejecución.
 
 ## Esta versión
 
+- **Más espacio en iPhone**: el logo PDF se oculta en móvil y el botón `⋯` de controles ocupa esa esquina.
+- **Zoom/Página abajo**: la barra de navegación, zoom, Ajustar y Página queda debajo del área del documento en móvil.
 - **Controles móviles configurables**: herramientas arriba, a la izquierda o a la derecha; la preferencia queda guardada en el dispositivo.
 - **Modo compacto y barra ocultable** para maximizar el área útil del PDF en iPhone.
 - El panel móvil de **Propiedades/Página** queda completamente invisible e inerte cuando está cerrado; ya no deja bordes asomados ni intercepta toques.

@@ -16,6 +16,7 @@
   <div id="app" class="app-shell ui-compact" data-toolbar-position="right">
     <header class="topbar">
       <div class="brand">
+        <button id="layoutBtn" class="icon-btn layout-btn" title="Posición de controles" aria-label="Configurar controles">⋯</button>
         <div class="brand-mark" aria-hidden="true">PDF</div>
         <div>
           <div class="brand-title">PDF Editor</div>
@@ -28,7 +29,6 @@
         <button id="openBtn" class="btn secondary">Abrir PDF</button>
         <button id="updateBtn" class="btn secondary hidden">Actualizar</button>
         <button id="exportBtn" class="btn primary" disabled>Exportar PDF</button>
-        <button id="layoutBtn" class="icon-btn layout-btn" title="Posición de controles" aria-label="Configurar controles">⋯</button>
       </div>
     </header>
 
@@ -67,6 +67,15 @@
 
         <div id="documentView" class="document-view hidden">
           <div id="saveStatus" role="status"></div>
+          <div id="canvasScroller" class="canvas-scroller">
+            <div id="pageStage" class="page-stage">
+              <canvas id="pdfCanvas"></canvas>
+              <svg id="overlaySvg" class="overlay-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+              <div id="pdfTextMeasureLayer" class="pdfjs-text-layer" aria-hidden="true"></div>
+              <div id="textHitLayer" class="text-hit-layer"></div>
+              <div id="selectionLayer" class="selection-layer"></div>
+            </div>
+          </div>
           <div class="page-controls">
             <button id="prevPageBtn" class="icon-btn" aria-label="Página anterior">‹</button>
             <div class="page-indicator"><input id="pageInput" inputmode="numeric" value="1" aria-label="Número de página" /> <span id="pageTotal">/ 0</span></div>
@@ -77,15 +86,6 @@
             <button id="zoomInBtn" class="icon-btn" aria-label="Acercar">+</button>
             <button id="fitBtn" class="mini-btn">Ajustar</button>
             <button id="pageToolsBtn" class="mini-btn mobile-page-tools">Página</button>
-          </div>
-          <div id="canvasScroller" class="canvas-scroller">
-            <div id="pageStage" class="page-stage">
-              <canvas id="pdfCanvas"></canvas>
-              <svg id="overlaySvg" class="overlay-svg" xmlns="http://www.w3.org/2000/svg"></svg>
-              <div id="pdfTextMeasureLayer" class="pdfjs-text-layer" aria-hidden="true"></div>
-              <div id="textHitLayer" class="text-hit-layer"></div>
-              <div id="selectionLayer" class="selection-layer"></div>
-            </div>
           </div>
         </div>
       </section>

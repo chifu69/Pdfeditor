@@ -1,5 +1,5 @@
 // Generated flat offline manifest. Do not edit by hand.
-self.OFFLINE_VERSION = "1.7.0-9673fb63f5c0";
+self.OFFLINE_VERSION = "1.7.1-b32bfec78ab4";
 self.OFFLINE_ASSETS = [
   "./",
   "./78-EUC-H.bcmap",
