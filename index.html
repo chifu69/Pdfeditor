@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div id="app" class="app-shell">
+  <div id="app" class="app-shell ui-compact" data-toolbar-position="right">
     <header class="topbar">
       <div class="brand">
         <div class="brand-mark" aria-hidden="true">PDF</div>
@@ -28,6 +28,7 @@
         <button id="openBtn" class="btn secondary">Abrir PDF</button>
         <button id="updateBtn" class="btn secondary hidden">Actualizar</button>
         <button id="exportBtn" class="btn primary" disabled>Exportar PDF</button>
+        <button id="layoutBtn" class="icon-btn layout-btn" title="Posición de controles" aria-label="Configurar controles">⋯</button>
       </div>
     </header>
 
@@ -42,6 +43,7 @@
 
       <section class="editor-area">
         <div id="toolbar" class="toolbar" aria-label="Herramientas">
+          <button id="toolbarCollapseBtn" class="toolbar-collapse-btn" type="button" title="Ocultar herramientas" aria-label="Ocultar herramientas">›</button>
           <button class="tool active" data-tool="select" title="Seleccionar">⌖<span>Seleccionar</span></button>
           <button class="tool" data-tool="editText" title="Editar texto existente">T✎<span>Editar texto</span></button>
           <button class="tool" data-tool="addText" title="Agregar texto">T+<span>Texto</span></button>
@@ -52,6 +54,7 @@
           <button id="imageBtn" class="tool" title="Insertar imagen">▧<span>Imagen</span></button>
           <button id="signatureBtn" class="tool" title="Firma">〰<span>Firma</span></button>
         </div>
+        <button id="toolbarRevealBtn" class="toolbar-reveal-btn" type="button" aria-label="Mostrar herramientas" title="Mostrar herramientas">☰</button>
 
         <div id="emptyState" class="empty-state">
           <div class="empty-icon">PDF</div>

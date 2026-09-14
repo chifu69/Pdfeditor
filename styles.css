@@ -194,3 +194,96 @@ button:disabled { opacity:.4; cursor:not-allowed; }
 }
 .page-stage[aria-busy="true"] { cursor:progress; }
 .toast { pointer-events:none; }
+
+/* Mobile workspace controls: configurable top/left/right dock. */
+.layout-btn, .toolbar-collapse-btn, .toolbar-reveal-btn { display:none; }
+.settings-toggle { display:flex; align-items:center; gap:9px; min-height:42px; margin:4px 0 12px; color:var(--text); font-size:13px; }
+.settings-toggle input { width:20px; height:20px; accent-color:var(--accent); }
+
+@media (max-width:700px) {
+  .app-shell { --mobile-tool-rail:82px; }
+  .app-shell.ui-compact { --mobile-tool-rail:58px; }
+
+  /* One compact header row on phones. */
+  .topbar {
+    min-height:calc(48px + env(safe-area-inset-top)); height:auto; flex-wrap:nowrap; align-content:center; gap:6px;
+    padding-top:env(safe-area-inset-top); padding-bottom:4px;
+  }
+  .brand { width:auto; min-height:0; flex:0 0 auto; }
+  .brand-mark { width:32px; height:32px; }
+  .brand-title, .brand-subtitle { display:none; }
+  .top-actions {
+    width:auto; min-width:0; flex:1; display:grid;
+    grid-template-columns:34px 34px minmax(54px,.8fr) minmax(72px,1fr) 34px;
+    gap:5px;
+  }
+  .top-actions .icon-btn { width:34px; height:34px; font-size:17px; }
+  .top-actions .btn { min-width:0; width:100%; height:34px; padding:6px 5px; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .layout-btn { display:grid; }
+
+  /* Closed really means closed: no visible border and no touch interception. */
+  .properties {
+    display:flex; position:fixed; left:8px; right:8px; bottom:calc(8px + env(safe-area-inset-bottom)); top:auto;
+    max-height:48dvh; z-index:35; border:1px solid #334155; border-radius:16px;
+    box-shadow:0 24px 70px rgba(0,0,0,.55); overflow:hidden;
+    transform:translate3d(0,calc(100% + 80px),0); opacity:0; visibility:hidden; pointer-events:none;
+    transition:transform .18s ease, opacity .15s ease, visibility 0s linear .18s;
+  }
+  .properties.mobile-open {
+    transform:translate3d(0,0,0); opacity:1; visibility:visible; pointer-events:auto;
+    transition:transform .18s ease, opacity .15s ease, visibility 0s;
+  }
+
+  .editor-area { position:relative; }
+  .toolbar-collapse-btn {
+    display:grid; place-items:center; flex:0 0 auto; min-width:0; width:36px; height:30px; margin:0 auto 3px;
+    border:1px solid var(--line); border-radius:9px; background:#0f172a; color:#cbd5e1; font-size:18px;
+  }
+  .toolbar-reveal-btn {
+    position:absolute; z-index:32; width:36px; height:42px; place-items:center;
+    border:1px solid #475569; background:#172033; color:#dbeafe; box-shadow:0 8px 24px rgba(0,0,0,.35);
+    font-size:18px; pointer-events:auto;
+  }
+  .tools-collapsed .toolbar { display:none !important; }
+  .app-shell:not(.tools-collapsed) .toolbar-reveal-btn { display:none; }
+  .tools-collapsed .toolbar-reveal-btn { display:grid; }
+
+  /* Top dock keeps the familiar layout. */
+  .app-shell[data-toolbar-position="top"] .toolbar {
+    position:relative; inset:auto; width:auto; height:auto; display:grid;
+    grid-template-columns:36px repeat(5,minmax(0,1fr));
+    gap:5px; overflow-x:auto; overflow-y:hidden;
+    padding:6px max(7px,env(safe-area-inset-right)) 6px max(7px,env(safe-area-inset-left));
+    border-right:0; border-left:0; border-bottom:1px solid var(--line);
+  }
+  .app-shell[data-toolbar-position="top"] .toolbar-collapse-btn { margin:auto; }
+  .app-shell[data-toolbar-position="top"].tools-collapsed .toolbar-reveal-btn { top:5px; right:max(6px,env(safe-area-inset-right)); border-radius:10px 0 0 10px; }
+
+  /* Side docks trade a little width for much more vertical workspace. */
+  .app-shell[data-toolbar-position="left"]:not(.tools-collapsed) .editor-area { padding-left:var(--mobile-tool-rail); }
+  .app-shell[data-toolbar-position="right"]:not(.tools-collapsed) .editor-area { padding-right:var(--mobile-tool-rail); }
+  .app-shell[data-toolbar-position="left"] .toolbar,
+  .app-shell[data-toolbar-position="right"] .toolbar {
+    position:absolute; top:0; bottom:0; width:var(--mobile-tool-rail); height:auto; z-index:28;
+    display:flex; flex-direction:column; align-items:stretch; gap:5px; overflow-x:hidden; overflow-y:auto;
+    padding:6px 5px calc(8px + env(safe-area-inset-bottom)); background:#111827; border-bottom:0;
+    scrollbar-width:none;
+  }
+  .app-shell[data-toolbar-position="left"] .toolbar { left:0; right:auto; border-right:1px solid var(--line); }
+  .app-shell[data-toolbar-position="right"] .toolbar { right:0; left:auto; border-left:1px solid var(--line); }
+  .app-shell[data-toolbar-position="left"].tools-collapsed .toolbar-reveal-btn { left:0; top:10px; border-radius:0 10px 10px 0; }
+  .app-shell[data-toolbar-position="right"].tools-collapsed .toolbar-reveal-btn { right:0; top:10px; border-radius:10px 0 0 10px; }
+
+  .app-shell[data-toolbar-position="left"] .tool,
+  .app-shell[data-toolbar-position="right"] .tool {
+    flex:0 0 auto; width:100%; min-width:0; height:52px; padding:4px 2px; font-size:15px; gap:3px;
+  }
+  .app-shell.ui-compact .tool { height:44px; }
+  .app-shell.ui-compact .tool span { display:none; }
+  .app-shell.ui-compact .toolbar-collapse-btn { width:34px; }
+
+  .canvas-scroller { padding:8px 6px calc(14px + env(safe-area-inset-bottom)); }
+  .page-controls { min-height:42px; padding:3px 6px; gap:5px; }
+  .page-controls .icon-btn { width:30px; height:30px; }
+  #saveStatus { min-height:18px; padding:2px 7px; }
+}

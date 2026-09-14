@@ -1,5 +1,5 @@
 // Generated flat offline manifest. Do not edit by hand.
-self.OFFLINE_VERSION = "1.6.0-65bc204046c4";
+self.OFFLINE_VERSION = "1.7.0-9673fb63f5c0";
 self.OFFLINE_ASSETS = [
   "./",
   "./78-EUC-H.bcmap",
@@ -207,5 +207,6 @@ self.OFFLINE_ASSETS = [
   "./UniKS-UTF8-V.bcmap",
   "./V.bcmap",
   "./WP-Symbol.bcmap",
+  "./ui-preferences.js",
   "./offline-assets.js"
 ];

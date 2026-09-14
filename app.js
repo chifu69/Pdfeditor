@@ -3,6 +3,7 @@ import { groupTextLayerEntriesIntoBlocks } from './text-blocks.js';
 import { layoutText, frameCorners } from './text-layout.js';
 import { saveSession, loadSession, clearSession, normalizeSession } from './storage.js';
 import { getTextContentCompat } from './pdf-text.js';
+import { loadUiPreferences, saveUiPreferences } from './ui-preferences.js';
 import * as pdfjsLib from './pdf.mjs';
 import './pdf-lib.min.js';
 const pdfJsBase = '.';
@@ -27,6 +28,7 @@ const els = {
   canvasScroller: $('canvasScroller'), stage: $('pageStage'), canvas: $('pdfCanvas'), overlay: $('overlaySvg'),
   textMeasureLayer: $('pdfTextMeasureLayer'), textHitLayer: $('textHitLayer'), selectionLayer: $('selectionLayer'), toolbar: $('toolbar'),
   properties: $('properties'), propertiesBody: $('propertiesBody'), closePropertiesBtn: $('closePropertiesBtn'), pageToolsBtn: $('pageToolsBtn'), undoBtn: $('undoBtn'), redoBtn: $('redoBtn'), imageBtn: $('imageBtn'),
+  layoutBtn: $('layoutBtn'), toolbarCollapseBtn: $('toolbarCollapseBtn'), toolbarRevealBtn: $('toolbarRevealBtn'),
   signatureBtn: $('signatureBtn'), rotateLeftBtn: $('rotateLeftBtn'), rotateRightBtn: $('rotateRightBtn'),
   duplicatePageBtn: $('duplicatePageBtn'), deletePageBtn: $('deletePageBtn'), moveUpBtn: $('moveUpBtn'), moveDownBtn: $('moveDownBtn'),
   modalBackdrop: $('modalBackdrop'), modalTitle: $('modalTitle'), modalBody: $('modalBody'), modalFooter: $('modalFooter'),
@@ -58,8 +60,50 @@ const state = {
   textItems: [],
   activeTextLayer: null,
   textSeq: 0, renderTask: null, renderQueue: Promise.resolve(), textCache: new Map(), tap: null, openSeq: 0,
-  assets: new Map(), assetByDataUrl: new Map()
+  assets: new Map(), assetByDataUrl: new Map(),
+  ui: loadUiPreferences()
 };
+
+function applyUiPreferences({rerender=true}={}) {
+  state.ui = saveUiPreferences(state.ui);
+  els.app.dataset.toolbarPosition = state.ui.toolbarPosition;
+  els.app.classList.toggle('ui-compact', state.ui.compactMode);
+  els.app.classList.toggle('tools-collapsed', state.ui.toolsCollapsed);
+  els.toolbarCollapseBtn.setAttribute('aria-expanded', String(!state.ui.toolsCollapsed));
+  els.toolbarRevealBtn.setAttribute('aria-expanded', String(!state.ui.toolsCollapsed));
+  const glyph = state.ui.toolbarPosition === 'left' ? '‹' : state.ui.toolbarPosition === 'right' ? '›' : '⌃';
+  els.toolbarCollapseBtn.textContent = glyph;
+  if (rerender && state.pdfJsDoc && state.fit) requestAnimationFrame(()=>renderCurrentPage({keepScroll:true}));
+}
+function setToolsCollapsed(collapsed) {
+  state.ui = {...state.ui, toolsCollapsed: !!collapsed};
+  applyUiPreferences();
+}
+function openLayoutSettings() {
+  const wrap=document.createElement('div');
+  wrap.innerHTML=`
+    <div class="form-row"><label for="toolbarPositionField">Posición de herramientas</label>
+      <select id="toolbarPositionField">
+        <option value="top">Arriba</option><option value="left">Izquierda</option><option value="right">Derecha</option>
+      </select>
+    </div>
+    <label class="settings-toggle"><input id="compactModeField" type="checkbox"> <span>Modo compacto (solo iconos)</span></label>
+    <p class="muted">La preferencia queda guardada en este dispositivo. Puedes ocultar la barra con la flecha y volver a mostrarla con ☰.</p>`;
+  wrap.querySelector('#toolbarPositionField').value=state.ui.toolbarPosition;
+  wrap.querySelector('#compactModeField').checked=state.ui.compactMode;
+  openModal({title:'Controles',body:wrap,actions:[
+    {label:'Cancelar',value:null},
+    {label:'Guardar',value:'save',kind:'primary'}
+  ]}).then(result=>{
+    if(result!=='save')return;
+    state.ui={...state.ui,
+      toolbarPosition:wrap.querySelector('#toolbarPositionField').value,
+      compactMode:wrap.querySelector('#compactModeField').checked,
+      toolsCollapsed:false
+    };
+    applyUiPreferences();
+  });
+}
 
 function uid(prefix = 'a') {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
@@ -185,6 +229,9 @@ function closeModal(value = null) {
 }
 els.closePropertiesBtn.addEventListener('click', () => els.properties.classList.remove('mobile-open'));
 els.pageToolsBtn.addEventListener('click', () => els.properties.classList.add('mobile-open'));
+els.layoutBtn.addEventListener('click', openLayoutSettings);
+els.toolbarCollapseBtn.addEventListener('click', () => setToolsCollapsed(true));
+els.toolbarRevealBtn.addEventListener('click', () => setToolsCollapsed(false));
 els.modalCloseBtn.addEventListener('click', () => closeModal(null));
 els.modalBackdrop.addEventListener('click', e => { if (e.target === els.modalBackdrop) closeModal(null); });
 
@@ -1084,6 +1131,7 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   navigator.serviceWorker.addEventListener('controllerchange',()=>{if(controlled)location.reload();controlled=true;});
 }
 
+applyUiPreferences({rerender:false});
 updateUndoRedo();
 
 let saveTimer, saveQueue=Promise.resolve(), restoredSession;

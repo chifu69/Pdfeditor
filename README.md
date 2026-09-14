@@ -1,9 +1,13 @@
-# PDF Editor PWA 1.6.0
+# PDF Editor PWA 1.7.0
 
 Editor PDF local, privado y preparado para funcionar completamente offline después de instalar/cargar todos sus recursos. El PDF se procesa en el dispositivo; no hay CDN ni backend de ejecución.
 
 ## Esta versión
 
+- **Controles móviles configurables**: herramientas arriba, a la izquierda o a la derecha; la preferencia queda guardada en el dispositivo.
+- **Modo compacto y barra ocultable** para maximizar el área útil del PDF en iPhone.
+- El panel móvil de **Propiedades/Página** queda completamente invisible e inerte cuando está cerrado; ya no deja bordes asomados ni intercepta toques.
+- La barra superior móvil se redujo a una sola fila para liberar espacio vertical.
 - **Editar texto** detecta bloques seleccionables, conserva párrafos/columnas de forma conservadora y permite volver a editar el mismo reemplazo sin apilar copias.
 - Safari/iPhone usa `getTextContent()` y, si falla la iteración del stream de PDF.js, cambia a un lector explícito con `getReader()`.
 - Vista previa y exportación comparten el mismo cálculo de texto y geometría; los bloques girados conservan su orientación.
@@ -39,7 +43,7 @@ Los PDF cifrados pueden visualizarse si PDF.js los abre con la contraseña, pero
 
 ## Compatibilidad
 
-La lógica específica de Safari/iPhone está incluida, pero esta entrega no debe considerarse validada físicamente en un iPhone hasta probarla en Safari real. Las pruebas automatizadas de este entorno validan la lógica, rutas offline, migración de sesiones y estructura del paquete; no sustituyen esa prueba física.
+La lógica específica de Safari/iPhone está incluida. Editar texto ya fue validado físicamente en iPhone sobre la base v1.6.0; esta v1.7.0 conserva ese motor y modifica únicamente la interfaz móvil alrededor de él. Las pruebas automatizadas de este entorno validan la lógica, rutas offline, migración de sesiones y estructura del paquete; no sustituyen esa prueba física.
 
 ## Archivos clave
 
